@@ -1,0 +1,102 @@
+BEGIN;
+CREATE TABLE IF NOT EXISTS units (
+  number VARCHAR(24) PRIMARY KEY,
+  floor INTEGER,
+  owner_name TEXT NOT NULL DEFAULT '',
+  resident_name TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT '',
+  phone TEXT NOT NULL DEFAULT '',
+  state TEXT NOT NULL DEFAULT 'ATIVA' CHECK(state IN ('ATIVA','INATIVA')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS accounts (
+  id BIGSERIAL PRIMARY KEY,
+  username VARCHAR(40) UNIQUE NOT NULL,
+  unit_number VARCHAR(24) REFERENCES units(number) ON UPDATE CASCADE,
+  role TEXT NOT NULL DEFAULT 'MORADOR' CHECK(role IN ('MORADOR','ADMIN')),
+  password_hash TEXT,
+  must_change BOOLEAN NOT NULL DEFAULT TRUE,
+  password_version INTEGER NOT NULL DEFAULT 0,
+  failed_count INTEGER NOT NULL DEFAULT 0,
+  locked_until TIMESTAMPTZ,
+  last_password_change TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS announcements (
+  id BIGSERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS charges (
+  id BIGSERIAL PRIMARY KEY,
+  unit_number VARCHAR(24) NOT NULL REFERENCES units(number),
+  competence VARCHAR(7) NOT NULL,
+  due_date DATE,
+  amount NUMERIC(12,2),
+  status TEXT NOT NULL DEFAULT 'PENDENTE' CHECK(status IN ('PENDENTE','PAGO','VENCIDO')),
+  document_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS reservations (
+  id BIGSERIAL PRIMARY KEY,
+  unit_number VARCHAR(24) NOT NULL REFERENCES units(number),
+  area VARCHAR(100) NOT NULL,
+  booking_date DATE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'SOLICITADA' CHECK(status IN ('SOLICITADA','APROVADA','NEGADA','CANCELADA')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS reservations_one_approved_per_day ON reservations(area,booking_date) WHERE status='APROVADA';
+CREATE TABLE IF NOT EXISTS tickets (
+  id BIGSERIAL PRIMARY KEY,
+  unit_number VARCHAR(24) NOT NULL REFERENCES units(number),
+  subject VARCHAR(120) NOT NULL,
+  description TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'ABERTO' CHECK(status IN ('ABERTO','EM_ANDAMENTO','CONCLUIDO')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS visitors (
+  id BIGSERIAL PRIMARY KEY,
+  unit_number VARCHAR(24) NOT NULL REFERENCES units(number),
+  visitor_name TEXT NOT NULL,
+  visit_date DATE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'SOLICITADO' CHECK(status IN ('SOLICITADO','APROVADO','NEGADO')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS documents (
+  id BIGSERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  storage_key TEXT NOT NULL UNIQUE,
+  content_type TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  visibility TEXT NOT NULL DEFAULT 'TODOS' CHECK(visibility IN ('TODOS','ADMIN')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS meetings (
+  id BIGSERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  scheduled_for TIMESTAMPTZ NOT NULL,
+  access_url TEXT,
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS reset_requests (
+  id BIGSERIAL PRIMARY KEY,
+  unit_number VARCHAR(24) NOT NULL REFERENCES units(number),
+  status TEXT NOT NULL DEFAULT 'PENDENTE' CHECK(status IN ('PENDENTE','RESOLVIDA')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id BIGSERIAL PRIMARY KEY,
+  actor TEXT NOT NULL,
+  action TEXT NOT NULL,
+  detail TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS charges_unit_idx ON charges(unit_number);
+CREATE INDEX IF NOT EXISTS tickets_unit_idx ON tickets(unit_number);
+CREATE INDEX IF NOT EXISTS reservations_unit_idx ON reservations(unit_number);
+CREATE INDEX IF NOT EXISTS visitors_unit_idx ON visitors(unit_number);
+CREATE INDEX IF NOT EXISTS audit_date_idx ON audit_logs(created_at DESC);
+COMMIT;

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: ampm-api-global
+    runtime: docker
+    plan: free
+    rootDir: api
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PG_SSL
+        value: '1'
+      - key: AMPM_ALERT_EMAIL
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
